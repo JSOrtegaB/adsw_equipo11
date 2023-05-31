@@ -1,3 +1,7 @@
+// Author: Juan Sebastian Ortega Briones
+// Description: Demo de chatbot con OpenAI usando Telegram con nodejs, maestria de inteligencia artificial, tec de monterrey
+// Date: 30 de Mayo de 2023
+
 const { Configuration, OpenAIApi } = require("openai");
 const TelegramBot = require("node-telegram-bot-api");
 const AsciiTable = require("ascii-table");
@@ -44,13 +48,6 @@ const runCompletion = async (content) => {
 const dbSave = async (content) => {
   const docRef = db.collection("chat").doc();
   const response = await docRef.set(content);
-};
-
-const dbGetAll = async (user) => {
-  const docRef = db.collection("chat");
-  const snapshot = await docRef.get();
-  const result = snapshot.docs.map((doc) => doc.data());
-  return result;
 };
 
 const dbGet = async (user) => {

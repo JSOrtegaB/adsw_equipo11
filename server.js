@@ -1,5 +1,6 @@
 const { Configuration, OpenAIApi } = require("openai");
 const TelegramBot = require("node-telegram-bot-api");
+const AsciiTable = require("ascii-table");
 
 const admin = require("firebase-admin");
 const serviceAccount = require("./serviceAccountKey.json");
@@ -45,6 +46,20 @@ const dbSave = async (content) => {
   const response = await docRef.set(content);
 };
 
+const dbGetAll = async (user) => {
+  const docRef = db.collection("chat");
+  const snapshot = await docRef.get();
+  const result = snapshot.docs.map((doc) => doc.data());
+  return result;
+};
+
+const dbGet = async (user) => {
+  const docRef = db.collection("chat").where("from.first_name", "==", user);
+  const snapshot = await docRef.get();
+  const result = snapshot.docs.map((doc) => doc.data());
+  return result;
+};
+
 const bot = new TelegramBot(token, { polling: true });
 
 bot.onText(/\/echo (.+)/, (msg, match) => {
@@ -64,30 +79,48 @@ bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   let resp = null;
   let resp1 = null;
-  console.log("Mensaje de telegram", msg);
+  //console.log("Mensaje de telegram", msg);
   if (msg.text === "/start") {
     resp1 = `Hola ${msg.from.first_name}, soy un bot que te ayuda con tu lista de compras, para usarlo solo escribe el producto que deseas agregar y yo lo agregare a la lista y te daré una sugerencia de donde puedes encontrarlo`;
   } else {
     resp = await runCompletion(msg.text);
   }
 
-  console.log("de chatGPT", resp?.choices[0].message.content);
+  if (msg.text.includes("lista")) {
+    let formated = `
+#Lista
 
-  const inputString = resp.choices[0].message.content;
-  const jsonString = inputString.substring(
-    inputString.indexOf("{"),
-    inputString.lastIndexOf("}") + 1
-  );
-  const jsonObject = JSON.parse(jsonString);
-  // send a message to the chat acknowledging receipt of their message
+| Producto   | Categoría   | Lugar de compra  | Sugerencia   |
+|------------|-------------|------------------|--------------|
+`;
+    var table = new AsciiTable("Lista");
+    table.setHeading("Producto", "Categoría", "Lugar", "Sugerencia");
 
-  dbSave({ ...jsonObject, ...msg });
-  bot.sendMessage(
-    chatId,
-    ` Hola ${msg.from.first_name}, ${
-      resp1 ? resp1 : JSON.stringify(jsonObject)
-    }`
-  );
+    const resp = await dbGet(msg.from.first_name);
+    resp.map((item) => {
+      table.addRow(item.producto, item.categoria, item.lugar, item.sugerencia);
+    });
+    console.log(table.toString());
+    bot.sendMessage(chatId, table.toString());
+  } else {
+    console.log("de chatGPT", resp?.choices[0].message.content);
+
+    const inputString = resp.choices[0].message.content;
+    const jsonString = inputString.substring(
+      inputString.indexOf("{"),
+      inputString.lastIndexOf("}") + 1
+    );
+    const jsonObject = JSON.parse(jsonString);
+    // send a message to the chat acknowledging receipt of their message
+
+    dbSave({ ...jsonObject, ...msg });
+    bot.sendMessage(
+      chatId,
+      ` Hola ${msg.from.first_name}, ${
+        resp1 ? resp1 : JSON.stringify(jsonObject)
+      }`
+    );
+  }
 });
 
 /* 

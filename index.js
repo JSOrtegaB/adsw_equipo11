@@ -27,20 +27,29 @@ const openai = new OpenAIApi(configuration);
 
 const runCompletion = async (content) => {
   console.log("Texto para chatGTP", content);
+  if (
+    content === null ||
+    content === undefined ||
+    content === "" ||
+    content.length < 3
+  )
+    return { error: "No hay texto para procesar" };
   try {
+    console.log("Entro a ChatGTP a preguntar");
     const completion = await openai.createChatCompletion({
       model: "gpt-3.5-turbo",
       temperature: 1,
       messages: [
         {
-          role: "system",
-          content: `del siguinete texto clasifica la categoria del producto y dame el producto, la categoria en una sola palabra y una sugerencia de lugar donde se puede comprar en un JSON que use las siguinetes llaves: producto, categoria, lugar y sugerencia.  Si no es un producto genera un json con una llave de error:${content}`,
+          role: "user",
+          content: `del siguiente texto clasifica la categoria del producto y dame el producto, la categoria en una sola palabra y una sugerencia de lugar donde se puede comprar en un JSON que use las siguientes llaves: producto, categoria, lugar y sugerencia.  Si no es un producto genera un json con una llave de error Este es el texto a clasificar${content}`,
         },
       ],
     });
     //console.log(completion.data);
     return completion.data;
   } catch (error) {
+    console.log("ChatGTP error", error);
     return { error };
   }
 };
@@ -51,9 +60,11 @@ const dbSave = async (content) => {
 };
 
 const dbGet = async (user) => {
-  const docRef = db.collection("chat").where("from.first_name", "==", user);
+  console.log("Entro a dbGet");
+  const docRef = db.collection("chat").where("first_name", "==", user);
   const snapshot = await docRef.get();
   const result = snapshot.docs.map((doc) => doc.data());
+  console.log("Salio de dbGet", result);
   return result;
 };
 
@@ -79,17 +90,15 @@ bot.on("message", async (msg) => {
   //console.log("Mensaje de telegram", msg);
   if (msg.text === "/start") {
     resp1 = `Hola ${msg.from.first_name}, soy un bot que te ayuda con tu lista de compras, para usarlo solo escribe el producto que deseas agregar y yo lo agregare a la lista y te daré una sugerencia de donde puedes encontrarlo`;
-  } else {
+  } else if (!msg.text.includes("lista")) {
+    bot.sendMessage(
+      chatId,
+      "Estoy trabajando en su solicitud, por favor espere un momento..."
+    );
     resp = await runCompletion(msg.text);
   }
 
   if (msg.text.includes("lista")) {
-    let formated = `
-#Lista
-
-| Producto   | Categoría   | Lugar de compra  | Sugerencia   |
-|------------|-------------|------------------|--------------|
-`;
     var table = new AsciiTable("Lista");
     table.setHeading("Producto", "Categoría", "Lugar", "Sugerencia");
 
@@ -110,56 +119,24 @@ bot.on("message", async (msg) => {
     const jsonObject = JSON.parse(jsonString);
     // send a message to the chat acknowledging receipt of their message
 
-    dbSave({ ...jsonObject, ...msg });
+    dbSave({ ...jsonObject, ...msg.chat });
     bot.sendMessage(
       chatId,
-      ` Hola ${msg.from.first_name}, ${
-        resp1 ? resp1 : JSON.stringify(jsonObject)
-      }`
+      ` Hola ${msg.from.first_name}, \n${
+        resp1
+          ? resp1
+          : `Producto agregado: <b>${jsonObject.producto}</b>\n
+        Categoría:<b>${jsonObject.categoria}</b>\n 
+        Lugar: <b>${jsonObject.lugar}</b>\n
+        Sugerencia: <b>${jsonObject.sugerencia}</b>\n
+        \n------------------------\n
+        Para ver la lista de productos agregados escribe:   <b>lista</b>
+        \n------------------------\n`
+      }`,
+      { parse_mode: "HTML" }
     );
   }
 });
-
-/* 
-async function generarRespuesta(mensaje) {
-  try {
-    // Llamar a la API para generar una respuesta
-    const respuesta = await openaiInstance.completions.create({
-      engine: "text-davinci-003",
-      prompt: mensaje,
-      max_tokens: 50,
-      temperature: 0.7,
-      n: 1,
-      stop: null,
-    });
-
-    // Extraer y devolver la respuesta generada por el modelo
-    return respuesta.choices[0].text.trim();
-  } catch (error) {
-    console.error("Error al generar la respuesta:", error);
-    return "";
-  }
-}
-
-// Inicio del chat
-console.log("¡Hola! Soy un chatbot. ¿En qué puedo ayudarte hoy?");
-
-process.stdin.on("data", async (data) => {
-  // Obtener el mensaje del usuario
-  const mensajeUsuario = data.toString().trim();
-
-  // Generar una respuesta utilizando el mensaje del usuario
-  const respuestaChatbot = await generarRespuesta(mensajeUsuario);
-
-  // Mostrar la respuesta del chatbot
-  console.log("Chatbot: " + respuestaChatbot);
-});
-
-// Detener el programa al presionar Ctrl+C
-process.on("SIGINT", () => {
-  process.exit();
-});
- */
 
 process.on("uncaughtException", function (err) {
   console.error("Caught exception: " + err);

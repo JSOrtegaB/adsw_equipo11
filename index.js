@@ -55,8 +55,8 @@ const runCompletion = async (content) => {
 };
 
 const dbSave = async (content) => {
-  const docRef = db.collection("chat").doc();
-  const response = await docRef.set(content);
+  const docRef = db.collection("chat").doc(new Date().toISOString());
+  const response = await docRef.set({ ...content });
 };
 
 const dbGet = async (user) => {
@@ -90,7 +90,7 @@ bot.on("message", async (msg) => {
   //console.log("Mensaje de telegram", msg);
   if (msg.text === "/start") {
     resp1 = `Hola ${msg.from.first_name}, soy un bot que te ayuda con tu lista de compras, para usarlo solo escribe el producto que deseas agregar y yo lo agregare a la lista y te daré una sugerencia de donde puedes encontrarlo`;
-  } else if (!msg.text.includes("lista")) {
+  } else if (!msg.text.toLocaleLowerCase().includes("lista")) {
     bot.sendMessage(
       chatId,
       "Estoy trabajando en su solicitud, por favor espere un momento..."
@@ -98,7 +98,7 @@ bot.on("message", async (msg) => {
     resp = await runCompletion(msg.text);
   }
 
-  if (msg.text.includes("lista")) {
+  if (msg.text.toLocaleLowerCase().includes("lista")) {
     var table = new AsciiTable("Lista");
     table.setHeading("Producto", "Categoría", "Lugar", "Sugerencia");
 
@@ -119,7 +119,7 @@ bot.on("message", async (msg) => {
     const jsonObject = JSON.parse(jsonString);
     // send a message to the chat acknowledging receipt of their message
 
-    dbSave({ ...jsonObject, ...msg.chat });
+    dbSave({ ...jsonObject, ...msg.chat, solicitud: msg.text });
     bot.sendMessage(
       chatId,
       ` Hola ${msg.from.first_name}, \n${
@@ -129,12 +129,16 @@ bot.on("message", async (msg) => {
         Categoría:<b>${jsonObject.categoria}</b>\n 
         Lugar: <b>${jsonObject.lugar}</b>\n
         Sugerencia: <b>${jsonObject.sugerencia}</b>\n
-        \n------------------------\n
-        Para ver la lista de productos agregados escribe:   <b>lista</b>
-        \n------------------------\n`
+        `
       }`,
       { parse_mode: "HTML" }
     );
+
+    bot.sendMessage(chatId, "Welcome", {
+      reply_markup: {
+        keyboard: [["Lista"], ["Completa", "Borrar"]],
+      },
+    });
   }
 });
 

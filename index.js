@@ -4,7 +4,6 @@
 
 const { Configuration, OpenAIApi } = require("openai");
 const TelegramBot = require("node-telegram-bot-api");
-const AsciiTable = require("ascii-table");
 
 const admin = require("firebase-admin");
 const serviceAccount = require("./serviceAccountKey.json");
@@ -70,45 +69,36 @@ const dbGet = async (user) => {
 
 const bot = new TelegramBot(token, { polling: true });
 
-bot.onText(/\/echo (.+)/, (msg, match) => {
-  // 'msg' is the received Message from Telegram
-  // 'match' is the result of executing the regexp above on the text content
-  // of the message
-
-  console.log("Mensaje Recibido de telegram", msg);
-  const chatId = msg.chat.id;
-  const resp = match[1]; // the captured "whatever"
-
-  // send back the matched "whatever" to the chat
-  bot.sendMessage(chatId, resp);
-});
-
 bot.on("message", async (msg) => {
   const chatId = msg.chat.id;
   let resp = null;
   let resp1 = null;
-  //console.log("Mensaje de telegram", msg);
-  if (msg.text === "/start") {
-    resp1 = `Hola ${msg.from.first_name}, soy un bot que te ayuda con tu lista de compras, para usarlo solo escribe el producto que deseas agregar y yo lo agregare a la lista y te daré una sugerencia de donde puedes encontrarlo`;
-  } else if (!msg.text.toLocaleLowerCase().includes("lista")) {
+
+  if (
+    !msg.text.toLocaleLowerCase().includes("lista") &&
+    !msg.text.toLocaleLowerCase().includes("start")
+  ) {
     bot.sendMessage(
       chatId,
       "Estoy trabajando en su solicitud, por favor espere un momento..."
     );
-    resp = await runCompletion(msg.text);
   }
 
   if (msg.text.toLocaleLowerCase().includes("lista")) {
-    var table = new AsciiTable("Lista");
-    table.setHeading("Producto", "Categoría", "Lugar", "Sugerencia");
-
     const resp = await dbGet(msg.from.first_name);
-    resp.map((item) => {
-      table.addRow(item.producto, item.categoria, item.lugar, item.sugerencia);
+    let lista = "#\t Producto\t \n";
+    resp.map((item, index) => {
+      lista += `${index + 1}\t ${item.producto}\n`;
     });
-    console.log(table.toString());
-    bot.sendMessage(chatId, table.toString());
+    console.log(lista);
+    bot.sendMessage(chatId, lista);
+  } else if (msg.text.toLocaleLowerCase().includes("start")) {
+    bot.sendMessage(
+      msg.chat.id,
+      `Hola ${msg.from.first_name}, ¡Soy un asistente virtual diseñado para ayudarte con tu lista de compras! Simplemente indícame el producto que deseas agregar y lo incluiré en la lista. Además, te proporcionaré sugerencias de lugares donde podrías encontrarlo. ¡Cuenta conmigo para facilitar tus compras!`
+    );
   } else {
+    resp = await runCompletion(msg.text);
     console.log("de chatGPT", resp?.choices[0].message.content);
 
     const inputString = resp.choices[0].message.content;
@@ -125,7 +115,8 @@ bot.on("message", async (msg) => {
       ` Hola ${msg.from.first_name}, \n${
         resp1
           ? resp1
-          : `Producto agregado: <b>${jsonObject.producto}</b>\n
+          : `
+        Producto agregado: <b>${jsonObject.producto}</b>\n
         Categoría:<b>${jsonObject.categoria}</b>\n 
         Lugar: <b>${jsonObject.lugar}</b>\n
         Sugerencia: <b>${jsonObject.sugerencia}</b>\n
@@ -134,7 +125,7 @@ bot.on("message", async (msg) => {
       { parse_mode: "HTML" }
     );
 
-    bot.sendMessage(chatId, "Welcome", {
+    bot.sendMessage(chatId, "Item Agregado a la lista", {
       reply_markup: {
         keyboard: [["Lista"], ["Completa", "Borrar"]],
       },

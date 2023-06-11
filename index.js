@@ -76,7 +76,9 @@ bot.on("message", async (msg) => {
 
   if (
     !msg.text.toLocaleLowerCase().includes("lista") &&
-    !msg.text.toLocaleLowerCase().includes("start")
+    !msg.text.toLocaleLowerCase().includes("start") &&
+    !msg.text.toLocaleLowerCase().includes("completa") &&
+    !msg.text.toLocaleLowerCase().includes("borra")
   ) {
     bot.sendMessage(
       chatId,
@@ -92,6 +94,23 @@ bot.on("message", async (msg) => {
     });
     console.log(lista);
     bot.sendMessage(chatId, lista);
+  } else if (msg.text.toLocaleLowerCase().includes("completa")) {
+    const resp = await dbGet(msg.from.first_name);
+    const completa = [];
+    resp.map((item, index) => completa.push([`${index + 1} ${item.producto}`]));
+    console.log(completa);
+    bot.sendMessage(chatId, "Completar", {
+      reply_markup: {
+        keyboard: completa,
+      },
+    });
+  } else if (msg.text.toLocaleLowerCase().match(/^\d+/)) {
+    const numero = msg.text.toLocaleLowerCase().match(/^\d+/);
+    console.log("Tiene un numero", numero[0]);
+    console.log(
+      "string: ",
+      msg.text.toLocaleLowerCase().replace(/^\d+\s*/, "")
+    );
   } else if (msg.text.toLocaleLowerCase().includes("start")) {
     bot.sendMessage(
       msg.chat.id,

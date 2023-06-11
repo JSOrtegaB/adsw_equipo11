@@ -18,5 +18,4 @@ Keep your token secure and store it safely, it can be used by anyone to control 
 For a description of the Bot API, see this page: https://core.telegram.org/bots/api
 ```
 
-upload cli for cloud:  
-gcloud functions deploy bot --gen1 --entry-point bot --runtime nodejs18 --trigger-http --project sistemamoviltrack
+https://github.com/hosein2398/node-telegram-bot-api-tutorial/blob/master/README.md#First+message

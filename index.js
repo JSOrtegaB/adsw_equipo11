@@ -99,11 +99,11 @@ bot.on("message", async (msg) => {
     const completa = [];
     resp.map((item, index) => completa.push([`${index + 1} ${item.producto}`]));
     console.log(completa);
-    /*     bot.sendMessage(chatId, "Completar", {
+    bot.sendMessage(chatId, "Completar", {
       reply_markup: {
         keyboard: completa,
       },
-    }); */
+    });
   } else if (msg.text.toLocaleLowerCase().match(/^\d+/)) {
     const numero = msg.text.toLocaleLowerCase().match(/^\d+/);
     console.log("Tiene un numero", numero[0]);
